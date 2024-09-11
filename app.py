@@ -52,5 +52,4 @@ def index():
             return jsonify({"message": "Login successful", "username": username})
         else:
             return jsonify({"message": "Invalid username or password"}), 401  # Unauthorized
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+
