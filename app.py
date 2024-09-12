@@ -106,7 +106,7 @@ def nutri():
         conn.close()
         if row:
          
-            user_data = {'id':row[1],'week1':row[2],'week2':row[3],'week3':row[4],'week4':row[5],'week5':row[6],'albumin':row[7],'lds':row[8]}
+            user_data = {'id':row[1],'week1':row[2],'week2':row[3],'week3':row[4],'week4':row[5],'week5':row[6],'height':row[7],'albumin':row[8],'lds':row[9],'lda':row[10]}
             return jsonify(user_data), 200
         else:
             return jsonify({'error': 'User not found'}), 404
