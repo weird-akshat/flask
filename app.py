@@ -65,6 +65,7 @@ def index():
         username = request.form.get('username')
         password = request.form.get('password')
 
+
         # Database connection
         conn = db_connection()
         cursor = conn.cursor()
@@ -72,12 +73,15 @@ def index():
         # Check if user exists with the provided username and password
         cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
         user = cursor.fetchone()
+        id=user[0];
+        print(user)
+        
         
         conn.close()
 
         # If user is found, login successful
         if user:
-            return jsonify({"message": "Login successful", "username": username})
+            return jsonify({"message": "Login successful", "username": username,"id": id})
         else:
             return jsonify({"message": "Invalid username or password"}), 401  # Unauthorized
 @app.route('/data', methods=['GET'])
