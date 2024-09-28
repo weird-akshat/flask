@@ -1,13 +1,18 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify
 import sqlite3
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_cors import CORS
 
-app = Flask(__name__)
+app = Flask(_name_)
+
+# Enable CORS for specific origins
+CORS(app, resources={r"/*": {"origins": "https://myapp-20051.vercel.app"}})  # Adjust origins as needed
 
 # Function to establish a database connection
 def db_connection():
     conn = None
     try:
-        conn = sqlite3.connect("database.sqlite", check_same_thread=False)  # Added check_same_thread=False for multi-threaded Flask app
+        conn = sqlite3.connect("database.sqlite", check_same_thread=False)
     except sqlite3.Error as e:
         print(e)
     return conn
@@ -16,7 +21,6 @@ def db_connection():
 def create_table():
     conn = db_connection()
     cursor = conn.cursor()
-    conn.row_factory = sqlite3.Row
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY,
@@ -38,17 +42,17 @@ def create_table():
     """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS nutrition(
-        id INTEGER PRIMARY KEY,
-        patient_id INTEGER,
-        week1_weight INTEGER,
-        week2_weight INTEGER,
-        week3_weight INTEGER,
-        week4_weight INTEGER,
-        week5_weight INTEGER,
-        height INTEGER,
-        albumin_levl INTEGER,
-        lds DATE,
-        lda DATE
+            id INTEGER PRIMARY KEY,
+            patient_id INTEGER,
+            week1_weight INTEGER,
+            week2_weight INTEGER,
+            week3_weight INTEGER,
+            week4_weight INTEGER,
+            week5_weight INTEGER,
+            height INTEGER,
+            albumin_level INTEGER,
+            lds DATE,
+            lda DATE
         )
     """)
     conn.commit()
@@ -57,63 +61,84 @@ def create_table():
 # Create table when the script runs
 create_table()
 
+# Add access control headers to the response
+@app.after_request
+def add_access_control_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = 'https://myapp-20051.vercel.app'  # Allow specific origin
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'  # Allowed methods
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'  # Allowed headers
+    return response
+
 # Login route
-@app.route('/', methods=['GET', 'POST'])
-def index():
+@app.route('/', methods=['POST'])
+def login():
     if request.method == 'POST':
-        # Fetch form data
         username = request.form.get('username')
         password = request.form.get('password')
 
-
-        # Database connection
         conn = db_connection()
         cursor = conn.cursor()
 
-        # Check if user exists with the provided username and password
-        cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
+        cursor.execute("SELECT * FROM users WHERE username=?", (username,))
         user = cursor.fetchone()
-        id=user[0];
-        print(user)
-        
-        
-        conn.close()
 
-        # If user is found, login successful
-        if user:
-            return jsonify({"message": "Login successful", "username": username,"id": id})
+        if user and check_password_hash(user['password'], password):
+            return jsonify({"message": "Login successful", "username": username, "id": user['id']}), 200
         else:
-            return jsonify({"message": "Invalid username or password"}), 401  # Unauthorized
+            return jsonify({"message": "Invalid username or password"}), 401
+
+# Fetch user data
 @app.route('/data', methods=['GET'])
 def fetch():
-    if request.method=='GET':
-        id=request.args.get('user_id')
-        conn=db_connection()
-        cursor=conn.cursor()
-        cursor.execute("SELECT * FROM record WHERE patient_id =?",(id,))
-        row=cursor.fetchone()
-        conn.close()
-        if row:
-            # Convert the row to a dictionary and return it as JSON
-            user_data = {'name':row[1],'id':row[2],'age':row[3],'gender':row[4],'condition':row[5],'doctor':row[6],'date':row[7]}
-            return jsonify(user_data), 200
-        else:
-            return jsonify({'error': 'User not found'}), 404
+    user_id = request.args.get('user_id')
+
+    conn = db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM record WHERE patient_id=?", (user_id,))
+    row = cursor.fetchone()
+
+    if row:
+        user_data = {
+            'name': row['name'],
+            'id': row['patient_id'],
+            'age': row['age'],
+            'gender': row['gender'],
+            'current_unit': row['current_unit'],
+            'doctor': row['doctor'],
+            'visit_date': row['visit_date']
+        }
+        return jsonify(user_data), 200
+    else:
+        return jsonify({'error': 'User not found'}), 404
+
+# Fetch nutrition data
 @app.route('/nutrition', methods=['GET'])
 def nutri():
-    if request.method=='GET':
-        id =request.args.get('user_id')
-        conn=db_connection()
-        cursor=conn.cursor()
-        cursor.execute("SELECT * FROM nutrition WHERE patient_id =?",(id,))
-        row=cursor.fetchone()
-        conn.close()
-        if row:
-         
-            user_data = {'id':row[1],'week1':row[2],'week2':row[3],'week3':row[4],'week4':row[5],'week5':row[6],'height':row[7],'albumin':row[8],'lds':row[9],'lda':row[10]}
-            return jsonify(user_data), 200
-        else:
-            return jsonify({'error': 'User not found'}), 404
+    user_id = request.args.get('user_id')
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    conn = db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM nutrition WHERE patient_id=?", (user_id,))
+    row = cursor.fetchone()
+
+    if row:
+        nutrition_data = {
+            'id': row['patient_id'],
+            'week1': row['week1_weight'],
+            'week2': row['week2_weight'],
+            'week3': row['week3_weight'],
+            'week4': row['week4_weight'],
+            'week5': row['week5_weight'],
+            'height': row['height'],
+            'albumin': row['albumin_level'],
+            'lds': row['lds'],
+            'lda': row['lda']
+        }
+        return jsonify(nutrition_data), 200
+    else:
+        return jsonify({'error': 'User not found'}), 404
+
+if _name_ == "_main_":
+    app.run(host="0.0.0.0", port=3000)
